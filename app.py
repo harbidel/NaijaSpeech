@@ -10,7 +10,33 @@ from asr import LANGUAGE_CHOICES, MAX_SECONDS, ModelAccessError, decode, detect_
 
 LOG = logging.getLogger(__name__)
 ROOT = Path(__file__).parent
+CSS = (ROOT / "style.css").read_text(encoding="utf-8")
 IDLE = "Ready when you are · Add a recording to begin."
+
+
+def styled_html(content):
+    # Gradio 6 scopes HTML styling; provide component CSS explicitly instead
+    # of depending on global selectors overriding its default typography.
+    return gr.HTML(content, css_template=CSS, apply_default_css=False)
+
+
+def build_theme():
+    theme = gr.themes.Soft(primary_hue="emerald", neutral_hue="stone", font=["Arial", "sans-serif"])
+    theme.set(
+        body_background_fill="#f7f6f0", body_text_color="#183c32",
+        body_text_color_subdued="#526454", background_fill_primary="#fffefa",
+        background_fill_secondary="#eef1e6", block_background_fill="#fffefa",
+        block_label_background_fill="#fffefa", block_label_text_color="#304e3b",
+        block_title_text_color="#244738", input_background_fill="#f5f6ee",
+        input_border_color="#c7d1bf", input_placeholder_color="#64745e",
+        button_primary_background_fill="#254f3b", button_primary_text_color="#ffffff",
+        button_secondary_background_fill="#edf1e5", button_secondary_text_color="#254f3b",
+    )
+    # Keep the intentionally light studio palette coherent when the embedding
+    # HF page or the visitor's OS chooses dark mode.
+    values = theme.to_dict()["theme"]
+    theme.set(**{key: values[key[:-5]] for key in values if key.endswith("_dark") and key[:-5] in values})
+    return theme
 
 
 def transcribe(path, language="Auto-detect", progress=gr.Progress()):
@@ -62,7 +88,7 @@ def transcribe_source(recording, upload, source, language, progress=gr.Progress(
 
 def build_demo():
     with gr.Blocks(title="NaijaSpeech · Multilingual ASR", delete_cache=(3600, 3600)) as demo:
-        gr.HTML("""
+        styled_html("""
         <header class="masthead"><a class="brand" href="#">◒ <span>Naija<span class="brand-light">Speech</span></span></a>
         <span class="edition">THE MULTILINGUAL SPEECH LAB <span class="live-dot"></span></span></header>
         <section class="hero">
@@ -80,7 +106,7 @@ def build_demo():
         """)
         with gr.Row(equal_height=True, elem_id="studio"):
             with gr.Column(scale=1, min_width=300, elem_classes="studio-panel"):
-                gr.HTML(f'<div class="panel-title"><span class="step">01</span><h3>Add your voice</h3><span class="panel-note">UP TO {MAX_SECONDS // 60} MIN</span></div>')
+                styled_html(f'<div class="panel-title"><span class="step">01</span><h3>Add your voice</h3><span class="panel-note">UP TO {MAX_SECONDS // 60} MIN</span></div>')
                 gr.Markdown(f"Record here or upload an existing recording. Up to {MAX_SECONDS // 60} minutes / 100 MB.", elem_classes="subtle")
                 source = gr.State("record")
                 with gr.Tabs():
@@ -94,7 +120,7 @@ def build_demo():
                     submit = gr.Button("Transcribe audio  →", variant="primary", scale=3, elem_id="transcribe-button")
                     clear = gr.Button("Reset", scale=1, variant="secondary")
             with gr.Column(scale=1, min_width=300, elem_classes="studio-panel"):
-                gr.HTML('<div class="panel-title"><span class="step">02</span><h3>See your words</h3><span class="panel-note">TRANSCRIPT</span></div>')
+                styled_html('<div class="panel-title"><span class="step">02</span><h3>See your words</h3><span class="panel-note">TRANSCRIPT</span></div>')
                 transcript = gr.Textbox(label="Transcription", show_label=False, placeholder="Your words will appear here…", lines=7, interactive=False, buttons=["copy"], elem_id="transcript")
                 with gr.Row(elem_id="metrics"):
                     duration = gr.Textbox(value="—", label="AUDIO LENGTH", interactive=False, min_width=85)
@@ -103,7 +129,7 @@ def build_demo():
                 download = gr.DownloadButton("Download transcript ↓", value=None, variant="secondary")
                 detected_language = gr.Textbox(value="—", label="Language", interactive=False)
         status = gr.Textbox(value=IDLE, label="Status", interactive=False, elem_id="status")
-        gr.HTML('''<section class="notes-grid">
+        styled_html('''<section class="notes-grid">
           <div><span class="note-index">01 / RECORD OR UPLOAD</span><h3>A voice, not a script.</h3><p>Record with your microphone or upload a saved conversation, interview, or voice note.</p></div>
           <div><span class="note-index">02 / TRANSCRIBE</span><h3>Your language, recognized.</h3><p>Let the app estimate the language, or select Yoruba, Hausa, or Igbo yourself.</p></div>
           <div><span class="note-index">03 / EXPLORE</span><h3>Keep the conversation going.</h3><p>Copy or download your transcript, then try another recording. Accents and audio quality can affect results.</p></div>
@@ -118,9 +144,13 @@ Audio is converted to mono at 16 kHz. Longer recordings are processed in **overl
 Expect lowercase text with limited punctuation. Diacritics depend on what the model learned. Noisy speech, unfamiliar accents, and code-switching can reduce accuracy. Review the transcript before using it.
 
 **Your audio:** recordings are sent to the server running this demo for processing. This app does not add recordings to a training dataset. Gradio caches uploads and downloads temporarily; files older than an hour are cleaned on an hourly schedule while the app runs. Only upload audio you are comfortable sharing with the Space operator.""")
-        gr.HTML('<footer><span>NaijaSpeech <span class="footer-separator">/</span> Made for the way we speak.</span><span>YORÙBÁ · HAUSA · IGBO</span></footer>')
+        styled_html('<footer><span>NaijaSpeech <span class="footer-separator">/</span> Made for the way we speak.</span><span>YORÙBÁ · HAUSA · IGBO</span></footer>')
         outputs = [transcript, download, status, duration, speed, words, detected_language]
-        submit.click(transcribe_source, inputs=[audio, upload, source, language], outputs=outputs, concurrency_limit=1, concurrency_id="model", trigger_mode="once")
+        submit.click(
+            transcribe_source, inputs=[audio, upload, source, language], outputs=outputs,
+            concurrency_limit=1, concurrency_id="model", trigger_mode="once",
+            show_progress="full", show_progress_on=[status],
+        )
         # Queue reset/input changes with inference so a late result cannot overwrite a reset.
         audio.change(reset_results, outputs=outputs, concurrency_id="model", concurrency_limit=1)
         upload.change(reset_results, outputs=outputs, concurrency_id="model", concurrency_limit=1)
@@ -135,8 +165,8 @@ demo = build_demo()
 
 if __name__ == "__main__":
     demo.queue(max_size=12, default_concurrency_limit=1).launch(
-        theme=gr.themes.Soft(primary_hue="emerald", neutral_hue="stone", font=["Arial", "sans-serif"]),
-        css=(ROOT / "style.css").read_text(encoding="utf-8"),
+        theme=build_theme(),
+        css=CSS,
         max_file_size="100mb",
         show_error=False,
     )
