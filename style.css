@@ -4,6 +4,7 @@ body, .gradio-container { background: #f7f6f0 !important; }
 .masthead { display:flex; align-items:center; justify-content:space-between; padding:18px 0; border-bottom:1px solid #d9dfd5; }
 .brand { display:flex; align-items:center; gap:10px; color:#204c3c !important; text-decoration:none; font-size:29px; font-weight:750; letter-spacing:-1.2px; }
 .brand-light { font-weight:400; }
+.brand-mark { display:block; width:48px; height:48px; flex-shrink:0; }
 .edition { font-size:10px; letter-spacing:1.8px; display:flex; align-items:center; gap:15px; color:#526454; }
 .live-dot { width:7px; height:7px; background:#52765a; border-radius:50%; }
 .hero { display:grid; grid-template-columns: 1.4fr 1fr; align-items:center; padding:24px 0 20px; gap:24px; }

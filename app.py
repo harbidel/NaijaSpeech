@@ -11,6 +11,7 @@ from asr import LANGUAGE_CHOICES, MAX_SECONDS, ModelAccessError, decode, detect_
 LOG = logging.getLogger(__name__)
 ROOT = Path(__file__).parent
 CSS = (ROOT / "style.css").read_text(encoding="utf-8")
+LOGO = (ROOT / "assets" / "logo.svg").read_text(encoding="utf-8")
 IDLE = "Ready when you are · Add a recording to begin."
 
 
@@ -47,17 +48,17 @@ def transcribe(path, language="Auto-detect", progress=gr.Progress()):
         audio, duration = read_audio(path)
         if language not in LANGUAGE_CHOICES:
             raise ValueError("Choose Auto-detect, Yoruba, Hausa, or Igbo.")
-        progress(0.1, desc="Loading speech model · the first request may take a minute")
+        progress(0.1, desc="Getting ready · the first request may take a moment")
         bundle = load_model()
         language_result = f"{language} · manually selected"
         if language == "Auto-detect":
-            progress(0.25, desc="Identifying the language · first use downloads the detector")
+            progress(0.25, desc="Identifying the language")
             try:
                 language_result = detect_language(audio)
             except Exception:
                 LOG.exception("Language detection failed")
                 language_result = "Detection unavailable · select a language manually. Transcription is still available."
-        progress(0.4, desc="Transcribing overlapping sections · long recordings take longer")
+        progress(0.4, desc="Transcribing your recording · longer recordings take more time")
         start = time.perf_counter()
         transcript = decode(audio, bundle)
         elapsed = time.perf_counter() - start
@@ -89,7 +90,7 @@ def transcribe_source(recording, upload, source, language, progress=gr.Progress(
 def build_demo():
     with gr.Blocks(title="NaijaSpeech · Multilingual ASR", delete_cache=(3600, 3600)) as demo:
         styled_html("""
-        <header class="masthead"><a class="brand" href="#">◒ <span>Naija<span class="brand-light">Speech</span></span></a>
+        <header class="masthead"><a class="brand" href="#" aria-label="NaijaSpeech home">""" + LOGO + """<span>Naija<span class="brand-light">Speech</span></span></a>
         <span class="edition">THE MULTILINGUAL SPEECH LAB <span class="live-dot"></span></span></header>
         <section class="hero">
           <div class="hero-copy"><div class="eyebrow">THREE LANGUAGES. COUNTLESS STORIES.</div>
@@ -114,7 +115,7 @@ def build_demo():
                         audio = gr.Audio(sources=["microphone"], type="filepath", format="wav", label="Microphone recording", elem_id="audio-input")
                     with gr.Tab("Upload recording", id="upload") as upload_tab:
                         upload = gr.Audio(sources=["upload"], type="filepath", format="wav", label="Upload WAV, MP3, FLAC, M4A or OGG", elem_id="upload-input")
-                language = gr.Dropdown(LANGUAGE_CHOICES, value="Auto-detect", label="Recording language", info="Auto-detect estimates the language. Manual selection sets the label; the same multilingual model transcribes all choices.")
+                language = gr.Dropdown(LANGUAGE_CHOICES, value="Auto-detect", label="Recording language", info="Estimate the recording's language automatically, or label it yourself. This choice does not translate the audio.")
                 gr.Markdown("**A little quiet goes a long way.** Speak clearly and keep your microphone close.", elem_classes="recording-tip")
                 with gr.Row():
                     submit = gr.Button("Transcribe audio  →", variant="primary", scale=3, elem_id="transcribe-button")
@@ -134,16 +135,12 @@ def build_demo():
           <div><span class="note-index">02 / TRANSCRIBE</span><h3>Your language, recognized.</h3><p>Let the app estimate the language, or select Yoruba, Hausa, or Igbo yourself.</p></div>
           <div><span class="note-index">03 / EXPLORE</span><h3>Keep the conversation going.</h3><p>Copy or download your transcript, then try another recording. Accents and audio quality can affect results.</p></div>
         </section>''')
-        with gr.Accordion("Behind the voices · About this demo", open=False):
-            gr.Markdown("""This demo uses your **XLS-R 300M model, fine-tuned for Yoruba, Hausa, and Igbo** with a shared CTC vocabulary. It transcribes speech; it does not translate. Manual language selection labels the recording and skips detection; it does not constrain the shared ASR decoder.
+        with gr.Accordion("Using NaijaSpeech", open=False):
+            gr.Markdown("""**Speak or upload.** Turn Yoruba, Hausa, and Igbo recordings into text. NaijaSpeech transcribes your words; it does not translate them.
 
-Audio is converted to mono at 16 kHz. Longer recordings are processed in **overlapping 20-second sections**, with overlap removed before decoding. The default recording limit is **10 minutes** (configurable by the Space owner). The first request downloads the models; long recordings can take several minutes on CPU.
+**For better results.** Use clear audio with little background noise. Automatic language detection can be uncertain, especially in mixed-language recordings. Always review your transcript for errors.
 
-**Automatic language detection** uses [Meta MMS LID](https://huggingface.co/facebook/mms-lid-126), sampling up to three sections. It estimates an overall language, can be wrong, and does not identify every language change in mixed speech. If detection is uncertain or unavailable, you can choose a language manually. MMS LID is licensed **CC-BY-NC-4.0**; this default detector is for noncommercial use.
-
-Expect lowercase text with limited punctuation. Diacritics depend on what the model learned. Noisy speech, unfamiliar accents, and code-switching can reduce accuracy. Review the transcript before using it.
-
-**Your audio:** recordings are sent to the server running this demo for processing. This app does not add recordings to a training dataset. Gradio caches uploads and downloads temporarily; files older than an hour are cleaned on an hourly schedule while the app runs. Only upload audio you are comfortable sharing with the Space operator.""")
+**Your privacy.** Audio is sent to this service for transcription and stored temporarily during processing. Uploads are not used to train the app. Only share recordings you have permission to use.""")
         styled_html('<footer><span>NaijaSpeech <span class="footer-separator">/</span> Made for the way we speak.</span><span>YORÙBÁ · HAUSA · IGBO</span></footer>')
         outputs = [transcript, download, status, duration, speed, words, detected_language]
         submit.click(

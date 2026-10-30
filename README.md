@@ -12,7 +12,7 @@ Features: separate microphone and upload tabs, recordings up to 10 minutes, auto
 ## Deploy to Hugging Face Spaces
 
 1. Create a new **Gradio** Space on Hugging Face.
-2. Upload `app.py`, `asr.py`, `style.css`, `requirements.txt`, `packages.txt`, and this `README.md` to its root. The training notebook is not needed for deployment.
+2. Upload `app.py`, `asr.py`, `style.css`, `requirements.txt`, `packages.txt`, and this `README.md` to its root, plus `assets/logo.svg` inside an `assets` folder. The training notebook is not needed for deployment.
 3. In **Settings → Variables and secrets**, add a **secret** named `HF_TOKEN` with read access to `Harbidel/yoruba-hausa-igbo-xls-r-300m-ctc` if that repository is private (the notebook creates it as private). Never put a token in source code or in a public variable.
 4. Optionally set the `MODEL_ID` variable to a different compatible repository ID or local checkpoint path.
 5. Wait for the build, then use **Record** or **Upload recording**, choose a language mode, and select **Transcribe audio**. The active tab determines which audio is processed. First use downloads the ASR checkpoint and, in Auto-detect mode, the separate language detector. CPU is supported; an available GPU is used for ASR. Long recordings can take several minutes on CPU.
