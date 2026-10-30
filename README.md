@@ -11,66 +11,219 @@ pinned: false
 short_description: Yoruba, Hausa and Igbo speech, in their own words.
 ---
 
-# NaijaSpeech
+<p align="center">
+  <img src="assets/logo.svg" alt="NaijaSpeech speech-bubble and waveform logo" width="80" />
+</p>
 
-A Gradio speech-to-text demo for the multilingual XLS-R 300M CTC model in `Multilingual_Yoruba_Hausa_Igbo_XLSR_CTC.ipynb`.
+<h1 align="center">NaijaSpeech</h1>
+<p align="center"><strong>Yoruba, Hausa, and Igbo speech—in their own words.</strong></p>
+<p align="center">
+  <a href="https://huggingface.co/spaces/Harbidel/NaijaSpeech">Live demo</a> ·
+  <a href="#quick-start">Run locally</a> ·
+  <a href="#deployment">Deploy on Spaces</a>
+</p>
 
-Features: separate microphone and upload tabs, recordings up to 10 minutes, automatic language identification or manual Yoruba/Hausa/Igbo selection, a copyable transcript, UTF-8 download, duration, inference timing, word count, and progress feedback. All three languages use the same ASR decoder; manual selection labels the recording and skips identification, but does not force the decoder to a language. There is no translation.
+NaijaSpeech is a multilingual automatic speech recognition (ASR) application for **Yoruba, Hausa, and Igbo**. It converts microphone recordings and uploaded audio into text through a Gradio interface, combining a fine-tuned XLS-R speech model with optional automatic language identification.
 
-## Deploy to Hugging Face Spaces
+The app supports recordings up to **10 minutes** by default, Unicode transcript downloads, and Hugging Face ZeroGPU deployment. It is designed for hands-on testing and research demonstrations. Transcription quality should be evaluated on the speech and recording conditions relevant to your use case.
 
-1. Create a new **Gradio** Space on Hugging Face.
-2. Upload `app.py`, `asr.py`, `style.css`, `requirements.txt`, `packages.txt`, and this `README.md` to its root, plus `assets/logo.svg` inside an `assets` folder. The training notebook is not needed for deployment.
-3. In **Settings → Variables and secrets**, add a **secret** named `HF_TOKEN` with read access to `Harbidel/yoruba-hausa-igbo-xls-r-300m-ctc` if that repository is private (the notebook creates it as private). Never put a token in source code or in a public variable.
-4. Optionally set the `MODEL_ID` variable to a different compatible repository ID or local checkpoint path.
-5. Wait for the build, then use **Record** or **Upload recording**, choose a language mode, and select **Transcribe audio**. The active tab determines which audio is processed. First use downloads the ASR checkpoint and, in Auto-detect mode, the separate language detector. CPU is supported; an available GPU is used for ASR. Long recordings can take several minutes on CPU.
+## Features
 
-Optional variables: `MAX_AUDIO_SECONDS` changes the default 600-second limit; `LID_MODEL_ID` changes the language detector (must be compatible with Wav2Vec2ForSequenceClassification and ISO 639-3 labels). The upload limit is 100 MB. Consider memory and shared queue wait times before raising the duration limit.
+| Capability | Description |
+| --- | --- |
+| Record or upload | Separate microphone and file-upload tabs with waveform playback. |
+| Multilingual transcription | Yoruba, Hausa, and Igbo recognition using one trained ASR checkpoint. |
+| Automatic language identification | Estimates the overall language, with uncertain and unsupported-language results. |
+| Manual language selection | Labels the recording and skips automatic identification. |
+| Longer recordings | Processes overlapping audio sections instead of a single large inference window. |
+| Transcript export | Copy text or download a UTF-8 file preserving Unicode characters and diacritics. |
+| Processing feedback | One status/progress area, audio duration, ASR inference time, and word count. |
+| Flexible hosting | Supports CPU, a dedicated CUDA GPU, and Hugging Face ZeroGPU. |
 
-ZeroGPU is supported: the ASR model is placed on CUDA at startup and inference uses `spaces.GPU` with a 120-second allocation. Language identification remains on CPU. GPU availability and user quotas can affect requests. Other environments continue to use a dedicated GPU when available, otherwise CPU.
+**Scope:** NaijaSpeech transcribes speech; it does not translate or separate speakers. Manual language selection does **not** force the shared ASR decoder to a particular language.
 
-## Language detection
+## Using the demo
 
-Auto-detect uses [facebook/mms-lid-126](https://huggingface.co/facebook/mms-lid-126), a separate 1B-parameter audio language classifier supporting `yor`, `hau`, and `ibo`. It runs on CPU and adds roughly 4 GB of model weights plus runtime overhead; allow sufficient host RAM alongside the ASR model. The checkpoint is **CC-BY-NC-4.0 (noncommercial)**. Check that license before deploying commercially, or replace the detector with one appropriately licensed for your use.
+1. Open [NaijaSpeech on Hugging Face Spaces](https://huggingface.co/spaces/Harbidel/NaijaSpeech).
+2. Choose **Record** to use your microphone or **Upload recording** to select an audio file.
+3. Choose **Auto-detect**, **Yoruba**, **Hausa**, or **Igbo** under **Recording language**.
+4. Select **Transcribe audio** and follow progress in the **Status** area.
+5. Review the result, then copy it or select **Download transcript**.
 
-The app samples up to three 10-second sections across the recording and averages their class probabilities. It reports the winning language among all classifier languages, rather than forcing unsupported speech into Yoruba/Hausa/Igbo. Scores below 0.5 are shown as uncertain; this is a heuristic, not calibrated confidence. It does not label individual speakers or language switches. Manual selection skips the detector. A detector loading failure does not prevent ASR transcription.
+The active tab determines which recording is processed. Uploading a file does not start transcription automatically. First use may take longer while models are downloaded or initialized.
 
-The trained model and processor must already be saved/uploaded. A notebook alone is not a checkpoint. Required files include `config.json`, model weights (`model.safetensors` or `pytorch_model.bin`, plus any shards/index), `preprocessor_config.json`, `vocab.json`, and saved tokenizer configuration files.
+## Quick start
 
-## Run locally
+### Prerequisites
 
-Use Python 3.12. On Windows PowerShell:
+- **Python 3.12** and Git.
+- **FFmpeg** installed and available on `PATH` for compressed audio and browser recording conversion.
+- Access to a compatible trained ASR checkpoint. The default repository is private; cloning this application does not grant access to its weights.
+- Sufficient RAM for the ASR model and optional detector. The detector has about 1 billion parameters; float32 weights alone require roughly 4 GB, before runtime overhead.
+
+### Windows PowerShell
 
 ```powershell
+git clone https://github.com/harbidel/NaijaSpeech.git
+cd NaijaSpeech
 py -3.12 -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
-# If the model is private, set HF_TOKEN in your environment before launching.
+
+# Authenticate if your chosen checkpoint is private.
 .\.venv\Scripts\hf.exe auth login
+
 .\.venv\Scripts\python app.py
 ```
 
-Open the localhost URL printed by Gradio. Install FFmpeg and put it on PATH for browser recordings and compressed audio conversion; Hugging Face installs it via `packages.txt`.
+### Linux / macOS
 
-**401 Unauthorized / model access denied:** browser login to huggingface.co does not authenticate the Python app. Run the login command above in your own terminal and enter a read-capable token for the private model. You can decline saving it as a Git credential. Alternatively configure `HF_TOKEN` in the app process's environment. For a hosted Space, add `HF_TOKEN` as a Space secret, then restart. Never paste the token into chat, source files, or a public Space variable.
+```bash
+git clone https://github.com/harbidel/NaijaSpeech.git
+cd NaijaSpeech
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 
-To use a local model, put the complete exported `final_model` folder beside `app.py`, or set `MODEL_ID` to its path. Resolution order: `MODEL_ID`, `./final_model`, `./model`, then the notebook's Hugging Face repository. Restart the app after changing the model or credentials.
+# Authenticate if your chosen checkpoint is private.
+hf auth login
 
-## Inference and limits
-
-- Recordings must be 0.25–600 seconds by default. Uploads are capped at 100 MB. Limits are checked explicitly; long recordings are not silently truncated.
-- The ASR pipeline processes 20-second windows with 3-second left/right context and batch size 1. It removes overlap in token space and decodes the joined sequence, avoiding naive concatenation of duplicated boundary words. The notebook's 20-second training limit is a window size, not a hard limit on recording duration.
-- Audio is downmixed to mono and resampled to 16 kHz using polyphase resampling. The saved processor handles normalization. Greedy CTC decoding preserves the trained vocabulary.
-- One inference request runs at a time, with up to 12 queued requests. The model is loaded lazily and reused, so the UI can start even before model access is configured.
-- Inference time excludes language detection, checkpoint download/loading, and audio preparation. No fabricated accuracy figures are displayed.
-- Transcripts generally contain lowercase text without punctuation. Accuracy depends on accents, noise, domain and code-switching.
-- Audio is processed on the host. The app does not train on uploads or log transcripts. Gradio temporary uploads/downloads are cleaned hourly when older than one hour, while the server is running. Reset clears the UI; it does not promise instant deletion of cached files.
-
-## Checks
-
-```powershell
-.\.venv\Scripts\python -m unittest discover -s tests -v
+python app.py
 ```
 
-The automated checks cover audio validation, recordings beyond 20 seconds, stereo/resampling, Unicode download, inference errors, language decisions, manual mode, detector failure, upload routing, and chunked pipeline configuration without downloading model checkpoints. Real transcription and detection accuracy require the actual weights and representative speech.
+Open the address printed by Gradio, normally `http://127.0.0.1:7860`. Browser microphone recording requires permission and a secure context such as localhost or HTTPS.
 
-References: [Gradio Audio](https://www.gradio.app/docs/gradio/audio), [Spaces configuration](https://huggingface.co/docs/hub/spaces-config-reference), [Wav2Vec2](https://huggingface.co/docs/transformers/model_doc/wav2vec2).
+Use a Hugging Face token with read access to the selected checkpoint. Browser login does not authenticate the Python application. Enter credentials through the CLI or environment; never commit tokens to source control.
+
+## Model configuration
+
+The ASR checkpoint is resolved in this order:
+
+1. `MODEL_ID`, when explicitly configured.
+2. A `final_model/` directory beside `app.py`, containing `config.json`.
+3. A `model/` directory beside `app.py`, containing `config.json`.
+4. `Harbidel/yoruba-hausa-igbo-xls-r-300m-ctc`.
+
+A local export must include trained weights and the matching processor/tokenizer files:
+
+```text
+final_model/
+├── config.json
+├── model.safetensors
+├── preprocessor_config.json
+├── vocab.json
+├── tokenizer_config.json
+└── special_tokens_map.json
+```
+
+Include any additional tokenizer files or weight shards produced by `save_pretrained()`. A notebook alone is not a checkpoint. The app expects a compatible **Wav2Vec2 CTC** export; `MODEL_ID` is not a general-purpose switch to arbitrary ASR architectures.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MODEL_ID` | Local-directory discovery, then the repository above | Compatible repository ID or local checkpoint path. |
+| `HF_TOKEN` | Saved Hugging Face credentials, if available | Authentication for private repositories; use a Space secret when hosted. |
+| `MAX_AUDIO_SECONDS` | `600` | Maximum duration in seconds; use a positive integer. |
+| `LID_MODEL_ID` | `facebook/mms-lid-126` | Compatible Wav2Vec2 language classifier with ISO 639-3 labels. |
+
+Restart after changing configuration. Increasing the duration limit increases processing time and queue occupancy. The separate **100 MB** upload cap is configured in `app.py`.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[Record or upload] --> B[Validate and prepare audio]
+    B --> C{Language mode}
+    C -->|Automatic| D[Estimate overall language]
+    C -->|Manual| E[Use selected label]
+    D --> F[Multilingual speech recognition]
+    E --> F
+    F --> G[Transcript and text download]
+```
+
+Audio is validated, downmixed to mono, and resampled to **16 kHz**. The saved processor handles normalization. ASR runs in **20-second windows** with **3 seconds of context on each side**, using batch size 1. Overlap is removed in token space before decoding the joined sequence, avoiding naive concatenation of duplicated boundary words.
+
+The 20-second window is not the recording limit. The app accepts **0.25–600 seconds** by default and rejects silent, unreadable, invalid, oversized, or unsupported multichannel inputs. One inference request runs at a time, with a queue limit of 12.
+
+Models are cached after loading. On ZeroGPU, ASR is initialized on CUDA at startup and inference uses a `spaces.GPU` allocation of up to 120 seconds. Other environments use an available CUDA GPU or fall back to CPU. The reported inference time excludes audio preparation, model loading, and language identification.
+
+### Language identification
+
+Automatic mode uses [Meta MMS LID](https://huggingface.co/facebook/mms-lid-126) separately from ASR. It samples up to three 10-second windows across the recording and averages the classifier outputs. It considers all the detector's supported languages rather than forcing unrelated speech into Yoruba, Hausa, or Igbo.
+
+A winning score below 0.5 is shown as uncertain. This is a heuristic, not calibrated confidence or transcription accuracy. Detection estimates an overall language; it does not label individual speakers or every language switch. It runs on CPU. If it fails, ASR can still proceed. Manual selection skips detection while retaining the same multilingual decoder.
+
+## Deployment
+
+1. Create a **Gradio Space** on Hugging Face.
+2. Upload `app.py`, `asr.py`, `style.css`, `requirements.txt`, `packages.txt`, `README.md`, and `assets/logo.svg`, preserving the folder structure.
+3. Under **Settings → Variables and secrets**, add `HF_TOKEN` as a **secret** with read access to the private model. Set `MODEL_ID` if needed.
+4. Select suitable hardware. ZeroGPU is supported; availability and per-user quotas may affect requests.
+5. Wait for the build and initialization, then test a short recording before a longer one.
+
+Keep the YAML metadata at the top of this README intact, including `sdk: gradio`, `sdk_version`, `python_version`, and `app_file: app.py`. Spaces uses it to start the application. `packages.txt` installs FFmpeg. The notebook, local virtual environment, and deployment ZIP are not needed at runtime.
+
+## Repository structure
+
+```text
+NaijaSpeech/
+├── app.py                 # Interface, callbacks, progress and transcript export
+├── asr.py                 # Audio preparation, loading, ASR and language ID
+├── style.css              # Responsive interface styling
+├── assets/
+│   └── logo.svg           # Application logo
+├── tests/
+│   └── test_app.py        # Validation, routing and inference checks
+├── requirements.txt       # Python dependencies
+├── packages.txt           # System packages for Spaces
+├── README.md
+└── Multilingual_Yoruba_Hausa_Igbo_XLSR_CTC.ipynb
+                           # Training workflow reference
+```
+
+## Testing
+
+Run inside the configured Python environment:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Tests cover audio validation, stereo conversion, resampling, recordings beyond 20 seconds, Unicode downloads, authentication errors, language decisions, manual mode, detector failures, and upload routing. A small locally initialized CTC model also exercises chunked inference without downloading the private checkpoint.
+
+These checks verify application behavior, **not recognition accuracy**. Hosted smoke tests have exercised ASR and language identification using synthetic audio. Representative recordings and reference transcripts are needed to measure word error rate (WER), character error rate (CER), and language-identification quality. No benchmark scores are claimed here.
+
+## Limitations
+
+- Noise, microphone quality, accents, speaking style, and unfamiliar domains can affect results.
+- Code-switching may produce incomplete or inaccurate language labels and transcripts.
+- Output generally reflects training text: lowercase, limited punctuation, and learned diacritics.
+- Long recordings can take several minutes, especially on CPU. An accepted duration does not guarantee completion within a ZeroGPU allocation or quota.
+- Review transcripts before publication or consequential use.
+
+## Privacy and data handling
+
+Audio is sent to the host running the app. The application does not add uploads to a training dataset or intentionally log transcript content. Audio handling and transcript downloads use temporary files.
+
+Gradio is configured to clean cached files hourly when they are older than one hour, while the app is running. **Reset clears the interface; it does not guarantee immediate deletion of cached files.** Hosting-provider logging, access controls, and retention policies are separate. Only upload recordings you have permission to process.
+
+## Troubleshooting
+
+| Symptom | Recommended action |
+| --- | --- |
+| Model access denied / 401 or 403 | Run `hf auth login` locally, or add `HF_TOKEN` as a Space secret. Confirm access to the private repository. |
+| Missing SDK in configuration | Restore the required YAML metadata at the top of this README. |
+| Slow first request | Allow time for downloads and initialization. Manual selection avoids loading the detector. |
+| Language detection unavailable | Check memory, connectivity, and detector settings. Manual selection still permits transcription. |
+| Audio cannot be read | Check FFmpeg installation or export mono/stereo WAV at 16 kHz. |
+| Microphone unavailable | Check browser permissions and device selection, or use file upload. |
+| GPU allocation failure or timeout | Check ZeroGPU quota and availability; try a shorter recording. |
+| Old interface styling | Hard-refresh after deployment and confirm the Space has restarted. |
+
+## Licensing and acknowledgements
+
+Built with [Gradio](https://www.gradio.app/), [Transformers](https://github.com/huggingface/transformers), [PyTorch](https://pytorch.org/), and the [XLS-R](https://huggingface.co/facebook/wav2vec2-xls-r-300m) model family.
+
+The default language detector, [`facebook/mms-lid-126`](https://huggingface.co/facebook/mms-lid-126), is licensed **CC-BY-NC-4.0**, which restricts commercial use. Review its model card and license before reuse. The fine-tuned ASR checkpoint and training data have their own terms and must be checked independently.
+
+This repository currently has no standalone `LICENSE` file. Do not assume that dependency or model licenses grant a license to the application code; contact the maintainer about reuse.
+
+Maintained by [Afolabi Abeeb Adebayo (Harbidel)](https://huggingface.co/Harbidel). Report reproducible problems through [GitHub Issues](https://github.com/harbidel/NaijaSpeech/issues), including the runtime environment, error, and non-sensitive reproduction steps. Do not include access tokens or private recordings.
